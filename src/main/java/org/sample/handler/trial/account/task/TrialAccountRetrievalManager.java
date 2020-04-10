@@ -14,7 +14,7 @@ import java.util.concurrent.TimeUnit;
 public class TrialAccountRetrievalManager {
     private static final Log log = LogFactory.getLog(TrialAccountRetrievalManager.class);
 
-    public static List<TrialAccountUser> getReceivers(long delay, String tenantDomain, long delayForSuspension)
+    public static List<TrialAccountUser> getReceivers(long trialPeriod, String tenantDomain)
             throws TrialAccountException {
 
         Set<String> userStoreDomains = TrialAccountUserRetrivalUtil.
@@ -30,21 +30,21 @@ public class TrialAccountRetrievalManager {
             TrialAccountRetriver trialAccountRetriver = TrialAccountUserRetrivalUtil
                     .getTrialAccountRetriversForDomain(userStoreDomain, tenantDomain);
             if (trialAccountRetriver != null) {
-                long trialPeriod;
+                long MinTrialPeriodinMilis;
+                long MaxTrialPeriodinMilis;
                 try {
-                    trialPeriod = getCurrentExecutionTime(TrialAccountDataHolder.getInstance().
-                            getExpiryTriggerTime()).getTimeInMillis() - TimeUnit.DAYS.toMillis(delay+1);
+                    MinTrialPeriodinMilis = getCurrentExecutionTime(TrialAccountDataHolder.getInstance().
+                            getExpiryTriggerTime()).getTimeInMillis() - TimeUnit.DAYS.toMillis(trialPeriod);
+                    MaxTrialPeriodinMilis = MinTrialPeriodinMilis + TimeUnit.DAYS.toMillis(2) - 1;
                 } catch (ParseException e) {
                     throw new TrialAccountException("Error occurred while reading notification "
                             + "trigger time", e);
                 }
-//                long lookupMax = lookupMin + TimeUnit.DAYS.toMillis(1);
                 List<TrialAccountUser> newReceivers = trialAccountRetriver
-                        .getTrialAccounts(trialPeriod, tenantDomain);
+                        .getTrialAccounts(MinTrialPeriodinMilis,MaxTrialPeriodinMilis, tenantDomain);
                 receivers.addAll(newReceivers);
             }
         }
-
         return receivers;
     }
 

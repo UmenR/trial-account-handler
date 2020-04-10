@@ -3,6 +3,7 @@ package org.sample.handler.trial.account.internal;
 import org.osgi.framework.BundleContext;
 import org.sample.handler.trial.account.constants.TrialAccountConstants;
 import org.sample.handler.trial.account.task.TrialAccountRetriverFactory;
+import org.wso2.carbon.identity.event.services.IdentityEventService;
 import org.wso2.carbon.identity.governance.IdentityGovernanceService;
 import org.wso2.carbon.user.core.service.RealmService;
 
@@ -17,9 +18,12 @@ public class TrialAccountDataHolder {
     private static volatile TrialAccountDataHolder accountServiceDataHolder = new TrialAccountDataHolder();
 
     private RealmService realmService;
+    private IdentityEventService identityEventService;
     private BundleContext bundleContext;
     private IdentityGovernanceService identityGovernanceService;
     private String expiryTriggerTime;
+    private long trialAccountPeriod;
+    private boolean isTrialAccountEnabled;
     private Map<String, TrialAccountRetriverFactory> trialAccountRetrivalFactories = new HashMap<>();
     private String trialAccountSuspentionThreadPoolSize = "1";
 
@@ -59,6 +63,10 @@ public class TrialAccountDataHolder {
         return trialAccountRetrivalFactories;
     }
 
+    public void addTrialAccountRetrivalFactories(String key, TrialAccountRetriverFactory factory) {
+        this.trialAccountRetrivalFactories.put(key,factory);
+    }
+
     public Date getExpiryTriggerTime() throws ParseException {
         DateFormat dateFormat = new SimpleDateFormat(TrialAccountConstants.TRIGGER_TIME_FORMAT);
         return dateFormat.parse(expiryTriggerTime);
@@ -66,6 +74,29 @@ public class TrialAccountDataHolder {
 
     public void setExpiryTriggerTime(String notificationTriggerTime) {
         this.expiryTriggerTime = notificationTriggerTime;
+    }
+    public void setIdentityEventService(IdentityEventService identityEventService) {
+        this.identityEventService = identityEventService;
+    }
+
+    public IdentityEventService getIdentityEventService() {
+        return identityEventService;
+    }
+
+    public void setTrialAccountPeriod(long period){
+        this.trialAccountPeriod = period;
+    }
+
+    public long getTrialAccountPeriod(){
+        return this.trialAccountPeriod;
+    }
+
+    public void setIsTrialAccountEnabled(boolean isEnabled){
+        this.isTrialAccountEnabled = isEnabled;
+    }
+
+    public boolean getTrialAccountEnabled(){
+        return this.isTrialAccountEnabled;
     }
 
 

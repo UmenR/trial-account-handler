@@ -30,84 +30,94 @@ import java.util.Calendar;
 import java.util.Date;
 import java.util.Map;
 import java.util.Properties;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
-public class TrialAccountHandler extends AbstractEventHandler {
+public class TrialAccountHandler extends AbstractEventHandler implements IdentityConnectorConfig {
     private static final Log log = LogFactory.getLog(TrialAccountHandler.class);
     @Override
     public String getName() {
         return "trialAccountHandler";
     }
 
-//    @Override
-//    public String getFriendlyName() {
-//        return "Trial Account Handling";
-//    }
-//
-//    @Override
-//    public String getCategory() {
-//        return "Login Policies";
-//    }
-//
-//    @Override
-//    public String getSubCategory() {
-//        return "DEFAULT";
-//    }
-//
-//    @Override
-//    public int getOrder() {
-//        return 0;
-//    }
-//
-//    @Override
-//    public Map<String, String> getPropertyNameMapping() {
-//        return null;
-//    }
-//
-//    @Override
-//    public Map<String, String> getPropertyDescriptionMapping() {
-//        return null;
-//    }
-//
-//    @Override
-//    public String[] getPropertyNames() {
-//        return new String[0];
-//    }
-//
-//    @Override
-//    public Properties getDefaultPropertyValues(String s) throws IdentityGovernanceException {
-//        return null;
-//    }
-//
-//    @Override
-//    public Map<String, String> getDefaultPropertyValues(String[] strings, String s) throws IdentityGovernanceException {
-//        return null;
-//    }
+    @Override
+    public String getFriendlyName() {
+        return "Trial Account Handling";
+    }
+
+    @Override
+    public String getCategory() {
+        return "Login Policies";
+    }
+
+    @Override
+    public String getSubCategory() {
+        return "DEFAULT";
+    }
+
+    @Override
+    public int getOrder() {
+        return 0;
+    }
+
+    @Override
+    public Map<String, String> getPropertyNameMapping() {
+        return null;
+    }
+
+    @Override
+    public Map<String, String> getPropertyDescriptionMapping() {
+        return null;
+    }
+
+    @Override
+    public String[] getPropertyNames() {
+        return new String[0];
+    }
+
+    @Override
+    public Properties getDefaultPropertyValues(String s) throws IdentityGovernanceException {
+        return null;
+    }
+
+    @Override
+    public Map<String, String> getDefaultPropertyValues(String[] strings, String s) throws IdentityGovernanceException {
+        return null;
+    }
 
     @Override
     public void init(InitConfig configuration) throws IdentityRuntimeException {
         log.info("INIT trial account handler");
         super.init(configuration);
+        try{
+            if (StringUtils.isBlank(configs.getModuleProperties().
+                    getProperty(TrialAccountConstants.TRIAL_ACCOUNT_SUSPENSION_TRIGGER_TIME))) {
+                TrialAccountDataHolder.getInstance().setExpiryTriggerTime(configs.getModuleProperties().
+                        getProperty(TrialAccountConstants.TRIAL_ACCOUNT_SUSPENSION_TRIGGER_TIME));
+            }
 
-        if (StringUtils.isBlank(configs.getModuleProperties().
-                getProperty(TrialAccountConstants.TRIAL_ACCOUNT_SUSPENSION_TRIGGER_TIME))) {
             TrialAccountDataHolder.getInstance().setExpiryTriggerTime(configs.getModuleProperties().
                     getProperty(TrialAccountConstants.TRIAL_ACCOUNT_SUSPENSION_TRIGGER_TIME));
+            TrialAccountDataHolder.getInstance().setIsTrialAccountEnabled(Boolean.parseBoolean(configs.
+                    getModuleProperties().getProperty(TrialAccountConstants.TRIAL_ACCOUNT_EXPIRY_ENABLED)));
+            TrialAccountDataHolder.getInstance().setTrialAccountPeriod(Long.parseLong(configs.getModuleProperties().
+                    getProperty(TrialAccountConstants.TRIAL_ACCOUNT_PERIOD)));
+            log.info("starting trial account scheduler");
+//            startScheduler();
+        } catch (Exception e){
+            e.printStackTrace();
         }
-
-        TrialAccountDataHolder.getInstance().setExpiryTriggerTime(configs.getModuleProperties().
-                getProperty(TrialAccountConstants.TRIAL_ACCOUNT_SUSPENSION_TRIGGER_TIME));
-        log.info("starting trial account scheduler");
-        startScheduler();
         TrialAccountDataHolder.getInstance().getBundleContext()
                 .registerService(IdentityConnectorConfig.class.getName(), this, null);
     }
 
     @Override
     public void handleEvent(Event event) throws IdentityEventException,TrialAccountException {
-        log.info("TRIAL ACCOUNT HANDLER INITIATING");
+        log.info("------------------------------------ TRIAL ACCOUNT HANDLER INITIATING");
+//        ExecutorService scheduler = Executors.newFixedThreadPool(2);
+//        scheduler.submit(new TrialAccountExpiryThread());
         Map<String, Object> eventProperties = event.getEventProperties();
         String userName = (String) eventProperties.get(IdentityEventConstants.EventProperty.USER_NAME);
         UserStoreManager userStoreManager = (UserStoreManager) eventProperties.get(IdentityEventConstants.EventProperty.USER_STORE_MANAGER);
@@ -131,7 +141,7 @@ public class TrialAccountHandler extends AbstractEventHandler {
                         .ErrorCode.USER_DOES_NOT_EXIST);
                 IdentityUtil.setIdentityErrorMsg(customErrorMessageContext);
             } else {
-                    if(isTrialAccount(userName,userStoreManager) && !isTrialExpired(userName,userStoreManager)) {
+                    if(isTrialAccount(userName,userStoreManager) && isTrialExpired(userName,userStoreManager)) {
                         String message;
                         if (StringUtils.isNotBlank(userStoreDomainName)) {
                             message = "Trial period has ended for user " + userName + " in user store "
@@ -200,52 +210,52 @@ public class TrialAccountHandler extends AbstractEventHandler {
 //                SUSPENSION_NOTIFICATION_ENABLED))) {
 //            return;
 //        }
-        log.info("SCHEDULER STARTEDD!!!");
-        Date notificationTriggerTime = null;
-        String notificationTriggerTimeProperty = configs.getModuleProperties().getProperty(TrialAccountConstants.
-                TRIAL_ACCOUNT_SUSPENSION_TRIGGER_TIME);
-
-        DateFormat dateFormat = new SimpleDateFormat(TrialAccountConstants.TRIGGER_TIME_FORMAT);
-
-        if (notificationTriggerTimeProperty != null) {
-            try {
-                notificationTriggerTime = dateFormat.parse(notificationTriggerTimeProperty);
-            } catch (ParseException e) {
-                log.error("Invalid Date format for Notification trigger time", e);
-            }
-        }
-
-        long schedulerDelayInSeconds = TimeUnit.HOURS.toSeconds(TrialAccountConstants.SCHEDULER_DELAY);
-
-        Calendar currentTime = Calendar.getInstance();
-        Calendar triggerTime = Calendar.getInstance();
-        // If notificationTriggerTimeProperty is not found or not in right format default to 20:00:00.
-        // In Calender.HOUR_OF_DAY (i.e. in 24-hour clock) it is 20.
-        if (notificationTriggerTime != null) {
-            triggerTime.setTime(notificationTriggerTime);
-        } else {
-            triggerTime.set(Calendar.HOUR_OF_DAY, 20);
-            triggerTime.set(Calendar.MINUTE, 0);
-            triggerTime.set(Calendar.SECOND, 0);
-        }
-
-
-        // Convert times into seconds
-        long currentSecond =
-                (currentTime.get(Calendar.HOUR_OF_DAY) * 3600) + currentTime.get(Calendar.MINUTE) * 60 + currentTime
-                        .get(Calendar.SECOND);
-        long triggerSecond =
-                (triggerTime.get(Calendar.HOUR_OF_DAY) * 3600) + triggerTime.get(Calendar.MINUTE) * 60 + triggerTime
-                        .get(Calendar.SECOND);
-        long delay = triggerSecond - currentSecond;
-        // If the notification time has passed, schedule the next day
-        if (delay < 0) {
-            delay += schedulerDelayInSeconds;
-        }
+        log.info("----------------------------------- SCHEDULER STARTED");
+//        Date notificationTriggerTime = null;
+//        String notificationTriggerTimeProperty = configs.getModuleProperties().getProperty(TrialAccountConstants.
+//                TRIAL_ACCOUNT_SUSPENSION_TRIGGER_TIME);
+//
+//        DateFormat dateFormat = new SimpleDateFormat(TrialAccountConstants.TRIGGER_TIME_FORMAT);
+//
+//        if (notificationTriggerTimeProperty != null) {
+//            try {
+//                notificationTriggerTime = dateFormat.parse(notificationTriggerTimeProperty);
+//            } catch (ParseException e) {
+//                log.error("Invalid Date format for Notification trigger time", e);
+//            }
+//        }
+//
+//        long schedulerDelayInSeconds = TimeUnit.HOURS.toSeconds(TrialAccountConstants.SCHEDULER_DELAY);
+//
+//        Calendar currentTime = Calendar.getInstance();
+//        Calendar triggerTime = Calendar.getInstance();
+//        // If notificationTriggerTimeProperty is not found or not in right format default to 20:00:00.
+//        // In Calender.HOUR_OF_DAY (i.e. in 24-hour clock) it is 20.
+//        if (notificationTriggerTime != null) {
+//            triggerTime.setTime(notificationTriggerTime);
+//        } else {
+//            triggerTime.set(Calendar.HOUR_OF_DAY, 20);
+//            triggerTime.set(Calendar.MINUTE, 0);
+//            triggerTime.set(Calendar.SECOND, 0);
+//        }
+//
+//
+//        // Convert times into seconds
+//        long currentSecond =
+//                (currentTime.get(Calendar.HOUR_OF_DAY) * 3600) + currentTime.get(Calendar.MINUTE) * 60 + currentTime
+//                        .get(Calendar.SECOND);
+//        long triggerSecond =
+//                (triggerTime.get(Calendar.HOUR_OF_DAY) * 3600) + triggerTime.get(Calendar.MINUTE) * 60 + triggerTime
+//                        .get(Calendar.SECOND);
+//        long delay = triggerSecond - currentSecond;
+//        // If the notification time has passed, schedule the next day
+//        if (delay < 0) {
+//            delay += schedulerDelayInSeconds;
+//        }
 
         ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(TrialAccountDataHolder.getInstance().
                 getTrialAccountSuspentionThreadPoolSize());
-        log.info("TRIAL ACCOUNT delay : " + delay + "schedulerDelayInSeconds : " + schedulerDelayInSeconds);
-        scheduler.scheduleAtFixedRate(new TrialAccountExpiryThread(), delay, schedulerDelayInSeconds, TimeUnit.SECONDS);
+//        log.info("TRIAL ACCOUNT delay : " + delay + "schedulerDelayInSeconds : " + schedulerDelayInSeconds);
+        scheduler.scheduleAtFixedRate(new TrialAccountExpiryThread(), 60, 60, TimeUnit.SECONDS);
     }
 }

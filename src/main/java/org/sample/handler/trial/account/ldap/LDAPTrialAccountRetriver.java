@@ -39,7 +39,7 @@ public class LDAPTrialAccountRetriver implements TrialAccountRetriver {
     }
 
     @Override
-    public List<TrialAccountUser> getTrialAccounts(long lookupMin, String tenantDomain) throws TrialAccountException {
+    public List<TrialAccountUser> getTrialAccounts(long lookupMin, long lookupMax, String tenantDomain) throws TrialAccountException {
 
         List<TrialAccountUser> users = new ArrayList<TrialAccountUser>();
 
@@ -57,19 +57,20 @@ public class LDAPTrialAccountRetriver implements TrialAccountRetriver {
                 }
 
                 String usernameMapAttribute = claimManager.getAttributeName(userStoreDomain, TrialAccountConstants.USERNAME_CLAIM);
-//                String firstNameMapAttribute  = claimManager.getAttributeName(userStoreDomain, NotificationConstants.FIRST_NAME_CLAIM);
-//                String emailMapAttribute = claimManager.getAttributeName(userStoreDomain, NotificationConstants.EMAIL_CLAIM);
-                String lastLoginTimeAttribute = claimManager.getAttributeName(userStoreDomain, TrialAccountConstants.ACCOUNT_CREATED_TIME);
+                String accountCreationTimeMilis = claimManager.getAttributeName(userStoreDomain, TrialAccountConstants.ACCOUNT_CREATED_TIME);
 
-//                if (log.isDebugEnabled()) {
-//                    log.debug("Retrieving ldap user list for lookupMin: " + lookupMin + " - lookupMax: " + lookupMax);
-//                }
+                if (log.isDebugEnabled()) {
+                    log.debug("Retrieving ldap user list for lookupMin: " + lookupMin + " - lookupMax: " + lookupMax);
+                }
 
                 LDAPConnectionContext ldapConnectionContext = new LDAPConnectionContext(realmConfiguration);
                 DirContext ctx = ldapConnectionContext.getContext();
 
                 //carLicense is the mapped LDAP attribute for LastLoginTime claim
-                String searchFilter = "("+lastLoginTimeAttribute+">=" + lookupMin + ")";
+//                String searchFilter = "(&("+accountCreationTimeMilis+">=" + lookupMin + ")("+accountCreationTimeMilis+"<="
+//                        + lookupMax + "))";
+                int testval = 600000;
+                String searchFilter = "("+accountCreationTimeMilis+">=" + testval + ")";
 
                 SearchControls searchControls = new SearchControls();
                 searchControls.setSearchScope(SearchControls.SUBTREE_SCOPE);
@@ -82,21 +83,9 @@ public class LDAPTrialAccountRetriver implements TrialAccountRetriver {
 
                 while (results.hasMoreElements()) {
                     SearchResult result = results.nextElement();
-
                     TrialAccountUser trialUser = new TrialAccountUser();
-//                    trialUser.setEmail((String) result.getAttributes().get(emailMapAttribute).get());
                     trialUser.setUsername((String) result.getAttributes().get(usernameMapAttribute).get());
-//                    trialUser.setFirstName((String) result.getAttributes().get(firstNameMapAttribute).get());
                     trialUser.setUserStoreDomain(userStoreDomain);
-
-                    long lastLoginTime = Long.parseLong(result.getAttributes().get(lastLoginTimeAttribute).get().
-                            toString());
-                    long expireDate = lastLoginTime + TimeUnit.DAYS.toMillis(lastLoginTime+30000);
-                    trialUser.setExpireDate(new SimpleDateFormat("dd-MM-yyyy").format(new Date(expireDate)));
-
-                    if (log.isDebugEnabled()) {
-                        log.debug("Expire date was set to: " + trialUser.getExpireDate());
-                    }
                     users.add(trialUser);
                 }
             } catch (NamingException e) {
