@@ -26,16 +26,13 @@ import org.wso2.carbon.user.core.util.UserCoreUtil;
 import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.util.Calendar;
-import java.util.Date;
-import java.util.Map;
-import java.util.Properties;
+import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
-public class TrialAccountHandler extends AbstractEventHandler implements IdentityConnectorConfig {
+public class TrialAccountHandler extends AbstractEventHandler implements IdentityConnectorConfig{
     private static final Log log = LogFactory.getLog(TrialAccountHandler.class);
     @Override
     public String getName() {
@@ -49,7 +46,7 @@ public class TrialAccountHandler extends AbstractEventHandler implements Identit
 
     @Override
     public String getCategory() {
-        return "Login Policies";
+        return "Custom Login Policy";
     }
 
     @Override
@@ -64,22 +61,48 @@ public class TrialAccountHandler extends AbstractEventHandler implements Identit
 
     @Override
     public Map<String, String> getPropertyNameMapping() {
-        return null;
+        Map<String, String> nameMapping = new HashMap<>();
+        nameMapping.put(TrialAccountConstants.TRIAL_ACCOUNT_EXPIRY_ENABLED, "Enable");
+        nameMapping.put(TrialAccountConstants.TRIAL_ACCOUNT_PERIOD, "Trial Period");
+        nameMapping.put(TrialAccountConstants.TRIAL_ACCOUNT_SUSPENSION_TRIGGER_TIME, "Scheduler Trigger Time ");
+        return nameMapping;
     }
 
     @Override
     public Map<String, String> getPropertyDescriptionMapping() {
-        return null;
+        Map<String, String> nameMapping = new HashMap<>();
+        nameMapping.put(TrialAccountConstants.TRIAL_ACCOUNT_EXPIRY_ENABLED, "Enable");
+        nameMapping.put(TrialAccountConstants.TRIAL_ACCOUNT_PERIOD, "Trial Period");
+        nameMapping.put(TrialAccountConstants.TRIAL_ACCOUNT_SUSPENSION_TRIGGER_TIME, "Scheduler Trigger Time ");
+        return nameMapping;
     }
 
     @Override
     public String[] getPropertyNames() {
-        return new String[0];
+        List<String> properties = new ArrayList<>();
+        properties.add(TrialAccountConstants.TRIAL_ACCOUNT_EXPIRY_ENABLED);
+        properties.add(TrialAccountConstants.TRIAL_ACCOUNT_PERIOD);
+        properties.add(TrialAccountConstants.TRIAL_ACCOUNT_SUSPENSION_TRIGGER_TIME);
+        return properties.toArray(new String[properties.size()]);
     }
 
     @Override
     public Properties getDefaultPropertyValues(String s) throws IdentityGovernanceException {
-        return null;
+        Map<String, String> defaultProperties = new HashMap<>();
+
+        defaultProperties.put(TrialAccountConstants.TRIAL_ACCOUNT_EXPIRY_ENABLED,
+                configs.getModuleProperties().getProperty(TrialAccountConstants.TRIAL_ACCOUNT_EXPIRY_ENABLED));
+
+        defaultProperties.put(TrialAccountConstants.TRIAL_ACCOUNT_PERIOD,
+                configs.getModuleProperties()
+                        .getProperty(TrialAccountConstants.TRIAL_ACCOUNT_PERIOD));
+
+        defaultProperties.put(TrialAccountConstants.TRIAL_ACCOUNT_SUSPENSION_TRIGGER_TIME,
+                configs.getModuleProperties().getProperty(TrialAccountConstants.TRIAL_ACCOUNT_SUSPENSION_TRIGGER_TIME));
+
+        Properties properties = new Properties();
+        properties.putAll(defaultProperties);
+        return properties;
     }
 
     @Override
@@ -89,7 +112,7 @@ public class TrialAccountHandler extends AbstractEventHandler implements Identit
 
     @Override
     public void init(InitConfig configuration) throws IdentityRuntimeException {
-        log.info("INIT trial account handler");
+        log.info(" ----------------------- INIT trial account handler ");
         super.init(configuration);
         try{
             if (StringUtils.isBlank(configs.getModuleProperties().
@@ -116,46 +139,48 @@ public class TrialAccountHandler extends AbstractEventHandler implements Identit
     @Override
     public void handleEvent(Event event) throws IdentityEventException,TrialAccountException {
         log.info("------------------------------------ TRIAL ACCOUNT HANDLER INITIATING");
-//        ExecutorService scheduler = Executors.newFixedThreadPool(2);
-//        scheduler.submit(new TrialAccountExpiryThread());
-        Map<String, Object> eventProperties = event.getEventProperties();
-        String userName = (String) eventProperties.get(IdentityEventConstants.EventProperty.USER_NAME);
-        UserStoreManager userStoreManager = (UserStoreManager) eventProperties.get(IdentityEventConstants.EventProperty.USER_STORE_MANAGER);
-        String userStoreDomainName = TrialAccountUtil.getUserStoreDomainName(userStoreManager);
-        String tenantDomain = (String) eventProperties.get(IdentityEventConstants.EventProperty.TENANT_DOMAIN);
-
-        String usernameWithDomain = UserCoreUtil.addDomainToName(userName, userStoreDomainName);
-        boolean userExists;
-        try {
-            userExists = userStoreManager.isExistingUser(usernameWithDomain);
-        } catch (UserStoreException e) {
-            throw new IdentityEventException("Error in accessing user store", e);
-        }
-        if (!userExists) {
-            return;
-        }
-
-        if (IdentityEventConstants.Event.PRE_AUTHENTICATION.equals(event.getEventName())) {
-            if (isAuthPolicyAccountExistCheck() && !isUserExistsInDomain(userStoreManager, userName)) {
-                IdentityErrorMsgContext customErrorMessageContext = new IdentityErrorMsgContext(UserCoreConstants
-                        .ErrorCode.USER_DOES_NOT_EXIST);
-                IdentityUtil.setIdentityErrorMsg(customErrorMessageContext);
-            } else {
-                    if(isTrialAccount(userName,userStoreManager) && isTrialExpired(userName,userStoreManager)) {
-                        String message;
-                        if (StringUtils.isNotBlank(userStoreDomainName)) {
-                            message = "Trial period has ended for user " + userName + " in user store "
-                                    + userStoreDomainName + " in tenant " + tenantDomain + ".";
-                        } else {
-                            message = "Trial period has ended for user " + userName + " in tenant " + tenantDomain + ".";
-                        }
-//                      TODO Error message
-                        IdentityErrorMsgContext customErrorMessageContext = new IdentityErrorMsgContext(UserCoreConstants.ErrorCode.USER_IS_LOCKED);
-                        IdentityUtil.setIdentityErrorMsg(customErrorMessageContext);
-                        throw new TrialAccountException(UserCoreConstants.ErrorCode.USER_IS_LOCKED, message);
-                    }
-            }
-        }
+        ExecutorService scheduler = Executors.newFixedThreadPool(2);
+        scheduler.submit(new TrialAccountExpiryThread());
+//        Map<String, Object> eventProperties = event.getEventProperties();
+//        String userName = (String) eventProperties.get(IdentityEventConstants.EventProperty.USER_NAME);
+//        UserStoreManager userStoreManager = (UserStoreManager) eventProperties.get(IdentityEventConstants.EventProperty.USER_STORE_MANAGER);
+//        String userStoreDomainName = TrialAccountUtil.getUserStoreDomainName(userStoreManager);
+//        String tenantDomain = (String) eventProperties.get(IdentityEventConstants.EventProperty.TENANT_DOMAIN);
+//
+//        String usernameWithDomain = UserCoreUtil.addDomainToName(userName, userStoreDomainName);
+//        boolean userExists = false;
+//        try {
+//            userExists = userStoreManager.isExistingUser(usernameWithDomain);
+//        } catch (UserStoreException e) {
+//            log.error("Error in checking User " , e);
+//            return;
+//        }
+//        if (!userExists) {
+//            return;
+//        }
+//
+//        if (IdentityEventConstants.Event.PRE_AUTHENTICATION.equals(event.getEventName())) {
+//            if (isAuthPolicyAccountExistCheck() && !isUserExistsInDomain(userStoreManager, userName)) {
+//                IdentityErrorMsgContext customErrorMessageContext = new IdentityErrorMsgContext(UserCoreConstants
+//                        .ErrorCode.USER_DOES_NOT_EXIST);
+//                IdentityUtil.setIdentityErrorMsg(customErrorMessageContext);
+//            } else {
+//                    if(isTrialAccount(userName,userStoreManager) && isTrialExpired(userName,userStoreManager)) {
+//                        String message;
+//                        if (StringUtils.isNotBlank(userStoreDomainName)) {
+//                            message = "Trial period has ended for user " + userName + " in user store "
+//                                    + userStoreDomainName + " in tenant " + tenantDomain + ".";
+//                        } else {
+//                            message = "Trial period has ended for user " + userName + " in tenant " + tenantDomain + ".";
+//                        }
+////                      TODO Error message
+//                        IdentityErrorMsgContext customErrorMessageContext = new IdentityErrorMsgContext(UserCoreConstants.ErrorCode.USER_IS_LOCKED);
+//                        IdentityUtil.setIdentityErrorMsg(customErrorMessageContext);
+//                        throw new TrialAccountException(UserCoreConstants.ErrorCode.USER_IS_LOCKED, message);
+//                    }
+//            }
+//        }
+        return;
     }
 
     private boolean isAuthPolicyAccountExistCheck() {
@@ -177,32 +202,27 @@ public class TrialAccountHandler extends AbstractEventHandler implements Identit
 
     protected boolean isTrialExpired(String userName, UserStoreManager userStoreManager) throws TrialAccountException {
 
-        String trialExpiredClaim;
         try {
             Map<String, String> values = userStoreManager.getUserClaimValues(userName, new String[]{
                     TrialAccountConstants.TRIAL_ACCOUNT_EXPIRED_CLAIM}, UserCoreConstants.DEFAULT_PROFILE);
-            trialExpiredClaim = values.get(TrialAccountConstants.TRIAL_ACCOUNT_EXPIRED_CLAIM);
+            return Boolean.parseBoolean(values.get(TrialAccountConstants.TRIAL_ACCOUNT_EXPIRED_CLAIM));
 
         } catch (UserStoreException e) {
-            throw new TrialAccountException("Error occurred while retrieving " + TrialAccountConstants
-                    .TRIAL_ACCOUNT_EXPIRED_CLAIM + " claim value", e);
+            log.error("Error in checking claim : is trial expired", e);
         }
-        return Boolean.parseBoolean(trialExpiredClaim);
+        return false;
     }
 
     protected boolean isTrialAccount(String userName, UserStoreManager userStoreManager) throws TrialAccountException {
-
-        String trialAccountClaim;
         try {
             Map<String, String> values = userStoreManager.getUserClaimValues(userName, new String[]{
                     TrialAccountConstants.TRIAL_ACCOUNT_CLAIM}, UserCoreConstants.DEFAULT_PROFILE);
-            trialAccountClaim = values.get(TrialAccountConstants.TRIAL_ACCOUNT_CLAIM);
+            return Boolean.parseBoolean(values.get(TrialAccountConstants.TRIAL_ACCOUNT_CLAIM));
 
         } catch (UserStoreException e) {
-            throw new TrialAccountException("Error occurred while retrieving " + TrialAccountConstants
-                    .TRIAL_ACCOUNT_CLAIM + " claim value", e);
+            log.error("Error in checking claim : is trial Account", e);
         }
-        return Boolean.parseBoolean(trialAccountClaim);
+        return false;
     }
 
     public void startScheduler(){

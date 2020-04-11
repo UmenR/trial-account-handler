@@ -8,7 +8,7 @@ import org.wso2.carbon.user.api.RealmConfiguration;
 public class LDAPTrialAccountRetriverFactory implements TrialAccountRetriverFactory {
 
     public static final String LDAP =
-            "org.wso2.carbon.identity.account.suspension.notification.task.ldap.LDAPNotificationReceiversRetrieval";
+            "org.sample.handler.trial.account.ldap.LDAPTrialAccountRetriver";
 
     @Override
     public TrialAccountRetriver buildCountRetriever(RealmConfiguration realmConfiguration)

@@ -76,13 +76,6 @@ public class TrialAccountExpiryThread implements Runnable {
         }
     }
 
-//    private String[] getPropertyNames() {
-//        List<String> properties = new ArrayList<>();
-//        properties.add(TrialAccountConstants.TRIAL_ACCOUNT_PERIOD);
-//        properties.add(TrialAccountConstants.TRIAL_ACCOUNT_EXPIRY_ENABLED);
-//        return properties.toArray(new String[properties.size()]);
-//    }
-
     private void lockTrialAccounts(String tenantDomain, long trialPeriod) throws IdentityException {
         List<TrialAccountUser> trialUsers = null;
         try {
@@ -97,6 +90,7 @@ public class TrialAccountExpiryThread implements Runnable {
                     UserRealm userRealm;
                     try {
                         userRealm = (UserRealm) realmService.getTenantUserRealm(tenantId);
+                        log.info("-------------- Got user realm");
                     } catch (UserStoreException e) {
                         throw new IdentityException("Failed retrieve the user realm for tenant: " + tenantDomain, e);
                     }
@@ -104,7 +98,8 @@ public class TrialAccountExpiryThread implements Runnable {
                     UserStoreManager userStoreManager;
                     try {
                         userStoreManager = userRealm.getUserStoreManager();
-                    } catch (org.wso2.carbon.user.core.UserStoreException e) {
+                        log.info("-------------- Got user store manager");
+                    } catch (UserStoreException e) {
                         throw new IdentityException("Failed retrieve the user store manager for tenant: " + tenantDomain,
                                 e);
                     }
@@ -116,6 +111,7 @@ public class TrialAccountExpiryThread implements Runnable {
                                 TrialAccountConstants.TRIAL_ACCOUNT_CLAIM,null));
                          isTrialExpired = Boolean.parseBoolean(userStoreManager.getUserClaimValue(IdentityUtil.addDomainToName(user.getUsername(),user.getUserStoreDomain()),
                                  TrialAccountConstants.TRIAL_ACCOUNT_EXPIRED_CLAIM,null));
+                        log.info("--------------  REtrived claims for user" + user.getUsername() + " trial account : " + isTrialAccount + " expired : " + isTrialExpired);
                     } catch(org.wso2.carbon.user.core.UserStoreException e){
                         throw new IdentityException("Failed retrieve claims: " + tenantDomain,
                                 e);
@@ -129,6 +125,7 @@ public class TrialAccountExpiryThread implements Runnable {
                     try {
                         userStoreManager.setUserClaimValues(IdentityUtil.addDomainToName(user.getUsername(),
                                 user.getUserStoreDomain()), updatedClaims, UserCoreConstants.DEFAULT_PROFILE);
+                        log.info("-------------- Updated claims");
                     } catch (org.wso2.carbon.user.core.UserStoreException e) {
                         throw new IdentityException("Failed to update claim values for user: " + IdentityUtil
                                 .addDomainToName(user.getUsername(), user.getUserStoreDomain()) + " in tenant: " +

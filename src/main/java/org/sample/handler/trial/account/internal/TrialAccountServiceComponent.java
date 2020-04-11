@@ -33,12 +33,12 @@ public class TrialAccountServiceComponent {
 
         LDAPTrialAccountRetriverFactory ldapTrialAccountRetriverFactory = new
                 LDAPTrialAccountRetriverFactory();
-        LDAPTrialAccountRetriver ldapRetriver = new LDAPTrialAccountRetriver();
-        TrialAccountDataHolder.getInstance().addTrialAccountRetrivalFactories(ldapRetriver.getClass()
-                .getName(),ldapTrialAccountRetriverFactory);
+//        LDAPTrialAccountRetriver ldapRetriver = new LDAPTrialAccountRetriver();
+//        TrialAccountDataHolder.getInstance().addTrialAccountRetrivalFactories(ldapRetriver.getClass()
+//                .getName(),ldapTrialAccountRetriverFactory);
         bundleContext.registerService(TrialAccountRetriverFactory.class.getName(),
                 ldapTrialAccountRetriverFactory, null);
-        log.info("Custom event handler activated successfully.");
+        log.info("-------- Custom event handler activated successfully.");
     }
     @Deactivate
     protected void deactivate(ComponentContext context) {
