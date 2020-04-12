@@ -5,13 +5,10 @@ import org.apache.commons.logging.LogFactory;
 import org.sample.handler.trial.account.constants.TrialAccountConstants;
 import org.sample.handler.trial.account.exceptions.TrialAccountException;
 import org.sample.handler.trial.account.internal.TrialAccountDataHolder;
-import org.sample.handler.trial.account.util.TrialAccountUser;
 import org.wso2.carbon.context.PrivilegedCarbonContext;
 import org.wso2.carbon.identity.application.common.model.Property;
 import org.wso2.carbon.identity.base.IdentityException;
 import org.wso2.carbon.identity.core.util.IdentityTenantUtil;
-import org.wso2.carbon.identity.core.util.IdentityUtil;
-import org.wso2.carbon.identity.governance.IdentityGovernanceException;
 import org.wso2.carbon.user.api.UserStoreException;
 import org.wso2.carbon.user.core.UserCoreConstants;
 import org.wso2.carbon.user.core.UserRealm;
@@ -20,9 +17,10 @@ import org.wso2.carbon.user.core.service.RealmService;
 import org.wso2.carbon.user.core.tenant.Tenant;
 import org.wso2.carbon.utils.multitenancy.MultitenantConstants;
 
-import java.util.ArrayList;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.time.LocalDate;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 public class TrialAccountExpiryThread implements Runnable {
@@ -61,7 +59,7 @@ public class TrialAccountExpiryThread implements Runnable {
 
         Property[] identityProperties;
         boolean isEnabled = false;
-        long trialAccountPeriod = TrialAccountDataHolder.getInstance().getTrialAccountPeriod();
+        int trialAccountPeriod = TrialAccountDataHolder.getInstance().getTrialAccountPeriod();
         try{
             PrivilegedCarbonContext.startTenantFlow();
             PrivilegedCarbonContext privilegedCarbonContext = PrivilegedCarbonContext.getThreadLocalCarbonContext();
@@ -76,67 +74,78 @@ public class TrialAccountExpiryThread implements Runnable {
         }
     }
 
-    private void lockTrialAccounts(String tenantDomain, long trialPeriod) throws IdentityException {
-        List<TrialAccountUser> trialUsers = null;
+    private void lockTrialAccounts(String tenantDomain, int trialPeriod) throws IdentityException {
         try {
-            trialUsers = TrialAccountRetrievalManager.getReceivers(trialPeriod, tenantDomain);
-            // Filter according to claims.
-            log.info("-------------- returned from get receivers is empty : " + !trialUsers.isEmpty());
-            if (!trialUsers.isEmpty()){
-                for(TrialAccountUser user: trialUsers){
-                    RealmService realmService = TrialAccountDataHolder.getInstance().getRealmService();
-                    int tenantId = IdentityTenantUtil.getTenantId(tenantDomain);
-
-                    UserRealm userRealm;
+            RealmService realmService = TrialAccountDataHolder.getInstance().getRealmService();
+            int tenantId = IdentityTenantUtil.getTenantId(tenantDomain);
+            UserRealm userRealm = null;
+            UserStoreManager userStoreManager = null;
+            try {
+                userRealm = (UserRealm) realmService.getTenantUserRealm(tenantId);
+                if (log.isDebugEnabled()) {
+                    log.debug("Realm Service received for trial account termination in tenant : " + tenantDomain);
+                }
+                userStoreManager = userRealm.getUserStoreManager();
+                if (log.isDebugEnabled()) {
+                    log.debug("User store manager received for trial account termination in tenant : "
+                            + tenantDomain);
+                }
+            } catch (UserStoreException e) {
+                log.error("Failed retrieve the user store manager for trial account termination in tenant: "
+                        + tenantDomain, e);
+            }
+            if(userRealm != null && userStoreManager != null){
+                String [] users;
+                try{
+                    users = userStoreManager.getUserList(TrialAccountConstants.ACCOUNT_CREATED_TIME,
+                            getCreationDateToLockTrialAccounts(trialPeriod)+"*",
+                            null);
+                }catch(UserStoreException e){
+                    throw new IdentityException("Failed retrieve the user store manager for tenant: " + tenantDomain,
+                            e);
+                }
+                for(String user: users){
                     try {
-                        userRealm = (UserRealm) realmService.getTenantUserRealm(tenantId);
-                        log.info("-------------- Got user realm");
-                    } catch (UserStoreException e) {
-                        throw new IdentityException("Failed retrieve the user realm for tenant: " + tenantDomain, e);
-                    }
-
-                    UserStoreManager userStoreManager;
-                    try {
-                        userStoreManager = userRealm.getUserStoreManager();
-                        log.info("-------------- Got user store manager");
-                    } catch (UserStoreException e) {
-                        throw new IdentityException("Failed retrieve the user store manager for tenant: " + tenantDomain,
-                                e);
-                    }
-                    boolean isTrialAccount = false;
-                    boolean isTrialExpired = false;
-                    try {
-                        //TODO Check for null ?
-                         isTrialAccount = Boolean.parseBoolean(userStoreManager.getUserClaimValue(IdentityUtil.addDomainToName(user.getUsername(),user.getUserStoreDomain()),
-                                TrialAccountConstants.TRIAL_ACCOUNT_CLAIM,null));
-                         isTrialExpired = Boolean.parseBoolean(userStoreManager.getUserClaimValue(IdentityUtil.addDomainToName(user.getUsername(),user.getUserStoreDomain()),
-                                 TrialAccountConstants.TRIAL_ACCOUNT_EXPIRED_CLAIM,null));
-                        log.info("--------------  REtrived claims for user" + user.getUsername() + " trial account : " + isTrialAccount + " expired : " + isTrialExpired);
-                    } catch(org.wso2.carbon.user.core.UserStoreException e){
-                        throw new IdentityException("Failed retrieve claims: " + tenantDomain,
-                                e);
-                    }
-                    if(!isTrialAccount || (isTrialAccount && isTrialExpired)){
-                        continue;
-                    }
-                    Map<String, String> updatedClaims = new HashMap<>();
-                    updatedClaims.put(TrialAccountConstants.TRIAL_ACCOUNT_EXPIRY_ENABLED, Boolean.TRUE.toString());
-
-                    try {
-                        userStoreManager.setUserClaimValues(IdentityUtil.addDomainToName(user.getUsername(),
-                                user.getUserStoreDomain()), updatedClaims, UserCoreConstants.DEFAULT_PROFILE);
-                        log.info("-------------- Updated claims");
-                    } catch (org.wso2.carbon.user.core.UserStoreException e) {
-                        throw new IdentityException("Failed to update claim values for user: " + IdentityUtil
-                                .addDomainToName(user.getUsername(), user.getUserStoreDomain()) + " in tenant: " +
-                                tenantDomain);
+                        Map<String,String> userClaims = userStoreManager.getUserClaimValues(user,
+                                new String[] {TrialAccountConstants.TRIAL_ACCOUNT_CLAIM,
+                                        TrialAccountConstants.TRIAL_ACCOUNT_EXPIRED_CLAIM},null);
+                        if (log.isDebugEnabled()) {
+                            log.debug("Claims user : " + user + " " + userClaims);
+                        }
+                        boolean isTrialAccount = false;
+                        boolean isTrialOver = false;
+                        if(!userClaims.isEmpty()){
+                            for(Map.Entry<String,String> claim : userClaims.entrySet()){
+                                if(TrialAccountConstants.TRIAL_ACCOUNT_CLAIM.equals(claim.getKey())){
+                                    isTrialAccount = Boolean.parseBoolean(claim.getValue());
+                                    continue;
+                                }
+                                if(TrialAccountConstants.TRIAL_ACCOUNT_EXPIRED_CLAIM.equals(claim.getKey())){
+                                    isTrialOver = Boolean.parseBoolean(claim.getValue());
+                                    continue;
+                                }
+                            }
+                        }
+                        if(isTrialAccount && !isTrialOver){
+                            Map<String, String> updatedClaims = new HashMap<>();
+                            updatedClaims.put(TrialAccountConstants.TRIAL_ACCOUNT_EXPIRED_CLAIM,
+                                    Boolean.TRUE.toString());
+                            userStoreManager.setUserClaimValues(user, updatedClaims, UserCoreConstants.DEFAULT_PROFILE);
+                            if (log.isDebugEnabled()) {
+                                log.debug("Trial account terminated for trial user : " + user);
+                            }
+                        }
+                    } catch (UserStoreException e){
+                        log.error("Error while checking trial status for user : " + user + e);
                     }
                 }
-            } else {
-                log.info("-------- NO TRIAL ACCOUNTS");
             }
         } catch (TrialAccountException e) {
-            throw IdentityException.error("Error occurred while retrieving users for account disable", e);
+            log.error("Error occurred while terminating trial users for tenant : " + tenantDomain, e);
         }
+    }
+    private String getCreationDateToLockTrialAccounts(int trialPeriod){
+        DateFormat df = new SimpleDateFormat(TrialAccountConstants.DATE_FORMAT);
+        return df.format(LocalDate.now().plusDays(-trialPeriod));
     }
 }

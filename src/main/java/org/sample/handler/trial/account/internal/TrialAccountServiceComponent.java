@@ -10,9 +10,6 @@ import org.osgi.service.component.annotations.Reference;
 import org.osgi.service.component.annotations.ReferenceCardinality;
 import org.osgi.service.component.annotations.ReferencePolicy;
 import org.sample.handler.trial.account.TrialAccountHandler;
-import org.sample.handler.trial.account.ldap.LDAPTrialAccountRetriver;
-import org.sample.handler.trial.account.ldap.LDAPTrialAccountRetriverFactory;
-import org.sample.handler.trial.account.task.TrialAccountRetriverFactory;
 import org.wso2.carbon.identity.event.handler.AbstractEventHandler;
 import org.wso2.carbon.identity.event.services.IdentityEventService;
 import org.wso2.carbon.identity.governance.IdentityGovernanceService;
@@ -27,18 +24,8 @@ public class TrialAccountServiceComponent {
     protected void activate(ComponentContext context) throws UserStoreException {
         BundleContext bundleContext = context.getBundleContext();
         TrialAccountDataHolder.getInstance().setBundleContext(bundleContext);
-
         TrialAccountHandler handler = new TrialAccountHandler();
         context.getBundleContext().registerService(AbstractEventHandler.class.getName(), handler, null);
-
-        LDAPTrialAccountRetriverFactory ldapTrialAccountRetriverFactory = new
-                LDAPTrialAccountRetriverFactory();
-//        LDAPTrialAccountRetriver ldapRetriver = new LDAPTrialAccountRetriver();
-//        TrialAccountDataHolder.getInstance().addTrialAccountRetrivalFactories(ldapRetriver.getClass()
-//                .getName(),ldapTrialAccountRetriverFactory);
-        bundleContext.registerService(TrialAccountRetriverFactory.class.getName(),
-                ldapTrialAccountRetriverFactory, null);
-        log.info("-------- Custom event handler activated successfully.");
     }
     @Deactivate
     protected void deactivate(ComponentContext context) {
@@ -96,33 +83,6 @@ public class TrialAccountServiceComponent {
         if (log.isDebugEnabled()) {
             log.debug("RealmService is set in the Trial bundle");
         }
-    }
-
-    protected void unsetNotificationReceiversRetrievalFactory(
-            TrialAccountRetriverFactory notificationReceiversRetrievalFactory) {
-
-        TrialAccountDataHolder.getInstance().getTrialAccountRetrivalFactories()
-                .remove(notificationReceiversRetrievalFactory.getType());
-
-        if (log.isDebugEnabled()) {
-            log.debug("Removed notification retriever : " + notificationReceiversRetrievalFactory.getType());
-        }
-    }
-    @Reference(
-            name = "NotificationTaskServiceComponent",
-            service = org.sample.handler.trial.account.task.TrialAccountRetriverFactory.class,
-            cardinality = ReferenceCardinality.MULTIPLE,
-            policy = ReferencePolicy.DYNAMIC,
-            unbind = "unsetNotificationReceiversRetrievalFactory")
-    protected void setNotificationReceiversRetrievalFactory(
-            TrialAccountRetriverFactory notificationReceiversRetrievalFactory) {
-
-        TrialAccountDataHolder.getInstance().getTrialAccountRetrivalFactories()
-                .put(notificationReceiversRetrievalFactory.getType(), notificationReceiversRetrievalFactory);
-        if (log.isDebugEnabled()) {
-            log.debug("Added notification retriever : " + notificationReceiversRetrievalFactory.getType());
-        }
-
     }
 
 }

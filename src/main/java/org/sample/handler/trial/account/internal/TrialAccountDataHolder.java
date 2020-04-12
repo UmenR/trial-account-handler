@@ -2,7 +2,6 @@ package org.sample.handler.trial.account.internal;
 
 import org.osgi.framework.BundleContext;
 import org.sample.handler.trial.account.constants.TrialAccountConstants;
-import org.sample.handler.trial.account.task.TrialAccountRetriverFactory;
 import org.wso2.carbon.identity.event.services.IdentityEventService;
 import org.wso2.carbon.identity.governance.IdentityGovernanceService;
 import org.wso2.carbon.user.core.service.RealmService;
@@ -22,9 +21,8 @@ public class TrialAccountDataHolder {
     private BundleContext bundleContext;
     private IdentityGovernanceService identityGovernanceService;
     private String expiryTriggerTime;
-    private long trialAccountPeriod;
+    private int trialAccountPeriod;
     private boolean isTrialAccountEnabled;
-    private Map<String, TrialAccountRetriverFactory> trialAccountRetrivalFactories = new HashMap<>();
     private String trialAccountSuspentionThreadPoolSize = "1";
 
     public int getTrialAccountSuspentionThreadPoolSize() {
@@ -59,14 +57,6 @@ public class TrialAccountDataHolder {
         return realmService;
     }
 
-    public Map<String, TrialAccountRetriverFactory> getTrialAccountRetrivalFactories() {
-        return trialAccountRetrivalFactories;
-    }
-
-    public void addTrialAccountRetrivalFactories(String key, TrialAccountRetriverFactory factory) {
-        this.trialAccountRetrivalFactories.put(key,factory);
-    }
-
     public Date getExpiryTriggerTime() throws ParseException {
         DateFormat dateFormat = new SimpleDateFormat(TrialAccountConstants.TRIGGER_TIME_FORMAT);
         return dateFormat.parse(expiryTriggerTime);
@@ -83,11 +73,11 @@ public class TrialAccountDataHolder {
         return identityEventService;
     }
 
-    public void setTrialAccountPeriod(long period){
+    public void setTrialAccountPeriod(int period){
         this.trialAccountPeriod = period;
     }
 
-    public long getTrialAccountPeriod(){
+    public int getTrialAccountPeriod(){
         return this.trialAccountPeriod;
     }
 
