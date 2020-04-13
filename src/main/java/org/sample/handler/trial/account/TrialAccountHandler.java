@@ -50,35 +50,42 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 public class TrialAccountHandler extends AbstractEventHandler implements IdentityConnectorConfig {
+
     private static final Log log = LogFactory.getLog(TrialAccountHandler.class);
 
     @Override
     public String getName() {
+
         return "trialAccountHandler";
     }
 
     @Override
     public String getFriendlyName() {
+
         return "Trial Account Handling";
     }
 
     @Override
     public String getCategory() {
+
         return "Custom Login Policy";
     }
 
     @Override
     public String getSubCategory() {
+
         return "DEFAULT";
     }
 
     @Override
     public int getOrder() {
+
         return 0;
     }
 
     @Override
     public Map<String, String> getPropertyNameMapping() {
+
         Map<String, String> nameMapping = new HashMap<>();
         nameMapping.put(TrialAccountConstants.TRIAL_ACCOUNT_EXPIRY_ENABLED, "Enable");
         nameMapping.put(TrialAccountConstants.TRIAL_ACCOUNT_PERIOD, "Trial Period");
@@ -88,6 +95,7 @@ public class TrialAccountHandler extends AbstractEventHandler implements Identit
 
     @Override
     public Map<String, String> getPropertyDescriptionMapping() {
+
         Map<String, String> nameMapping = new HashMap<>();
         nameMapping.put(TrialAccountConstants.TRIAL_ACCOUNT_EXPIRY_ENABLED, "Enable");
         nameMapping.put(TrialAccountConstants.TRIAL_ACCOUNT_PERIOD, "Trial Period");
@@ -97,6 +105,7 @@ public class TrialAccountHandler extends AbstractEventHandler implements Identit
 
     @Override
     public String[] getPropertyNames() {
+
         List<String> properties = new ArrayList<>();
         properties.add(TrialAccountConstants.TRIAL_ACCOUNT_EXPIRY_ENABLED);
         properties.add(TrialAccountConstants.TRIAL_ACCOUNT_PERIOD);
@@ -106,6 +115,7 @@ public class TrialAccountHandler extends AbstractEventHandler implements Identit
 
     @Override
     public Properties getDefaultPropertyValues(String s) {
+
         Map<String, String> defaultProperties = new HashMap<>();
 
         defaultProperties.put(TrialAccountConstants.TRIAL_ACCOUNT_EXPIRY_ENABLED,
@@ -125,11 +135,13 @@ public class TrialAccountHandler extends AbstractEventHandler implements Identit
 
     @Override
     public Map<String, String> getDefaultPropertyValues(String[] strings, String s) throws IdentityGovernanceException {
+
         return null;
     }
 
     @Override
     public void init(InitConfig configuration) throws IdentityRuntimeException {
+
         if (log.isDebugEnabled()) {
             log.debug("Initiating Trial Account Handler");
         }
@@ -157,6 +169,7 @@ public class TrialAccountHandler extends AbstractEventHandler implements Identit
 
     @Override
     public void handleEvent(Event event) throws IdentityEventException, TrialAccountException {
+
         Map<String, Object> eventProperties = event.getEventProperties();
         String userName = (String) eventProperties.get(IdentityEventConstants.EventProperty.USER_NAME);
         UserStoreManager userStoreManager =
@@ -201,6 +214,7 @@ public class TrialAccountHandler extends AbstractEventHandler implements Identit
     }
 
     private boolean isAuthPolicyAccountExistCheck() {
+
         return Boolean.parseBoolean(IdentityUtil.getProperty("AuthenticationPolicy.CheckAccountExist"));
     }
 
@@ -226,22 +240,24 @@ public class TrialAccountHandler extends AbstractEventHandler implements Identit
             return Boolean.parseBoolean(values.get(TrialAccountConstants.TRIAL_ACCOUNT_EXPIRED_CLAIM));
 
         } catch (UserStoreException e) {
-            throw new TrialAccountException("Error in checking claim : is trial expired",e);
+            throw new TrialAccountException("Error in checking claim : is trial expired", e);
         }
     }
 
     protected boolean isTrialAccount(String userName, UserStoreManager userStoreManager) throws TrialAccountException {
+
         try {
             Map<String, String> values = userStoreManager.getUserClaimValues(userName, new String[]{
                     TrialAccountConstants.TRIAL_ACCOUNT_CLAIM}, UserCoreConstants.DEFAULT_PROFILE);
             return Boolean.parseBoolean(values.get(TrialAccountConstants.TRIAL_ACCOUNT_CLAIM));
 
         } catch (UserStoreException e) {
-            throw new TrialAccountException("Error in checking claim : is trial Account",e);
+            throw new TrialAccountException("Error in checking claim : is trial Account", e);
         }
     }
 
     public void startScheduler() {
+
         if (!Boolean.parseBoolean(configs.getModuleProperties().getProperty(TrialAccountConstants.
                 TRIAL_ACCOUNT_EXPIRY_ENABLED))) {
             return;
@@ -276,7 +292,6 @@ public class TrialAccountHandler extends AbstractEventHandler implements Identit
             triggerTime.set(Calendar.MINUTE, 0);
             triggerTime.set(Calendar.SECOND, 0);
         }
-
 
         // Convert times into seconds
         long currentSecond =

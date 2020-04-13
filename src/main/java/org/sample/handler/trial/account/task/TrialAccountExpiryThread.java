@@ -44,6 +44,7 @@ public class TrialAccountExpiryThread implements Runnable {
 
     @Override
     public void run() {
+
         log.info("Running task");
         if (log.isDebugEnabled()) {
             log.debug("Idle account suspension task started.");
@@ -68,22 +69,23 @@ public class TrialAccountExpiryThread implements Runnable {
     }
 
     private void handleTask(String tenantDomain) {
+
         boolean isEnabled = TrialAccountDataHolder.getInstance().getTrialAccountEnabled();
-        if(!isEnabled){
+        if (!isEnabled) {
             return;
         }
         if (log.isDebugEnabled()) {
             log.debug("Handling trial account expiry task for tenant: " + tenantDomain);
         }
         int trialAccountPeriod = TrialAccountDataHolder.getInstance().getTrialAccountPeriod();
-        try{
+        try {
             PrivilegedCarbonContext.startTenantFlow();
             PrivilegedCarbonContext privilegedCarbonContext = PrivilegedCarbonContext.getThreadLocalCarbonContext();
             privilegedCarbonContext.setTenantId(IdentityTenantUtil.getTenantId(tenantDomain));
             privilegedCarbonContext.setTenantDomain(tenantDomain);
-            lockTrialAccounts(tenantDomain,trialAccountPeriod);
+            lockTrialAccounts(tenantDomain, trialAccountPeriod);
 
-        }  catch (IdentityException e) {
+        } catch (IdentityException e) {
             log.error("Error occurred in locking trial accounts task : ", e);
         } finally {
             PrivilegedCarbonContext.endTenantFlow();
@@ -91,6 +93,7 @@ public class TrialAccountExpiryThread implements Runnable {
     }
 
     private void lockTrialAccounts(String tenantDomain, int trialPeriod) throws IdentityException {
+
         try {
             RealmService realmService = TrialAccountDataHolder.getInstance().getRealmService();
             int tenantId = IdentityTenantUtil.getTenantId(tenantDomain);
@@ -110,43 +113,43 @@ public class TrialAccountExpiryThread implements Runnable {
                 log.error("Failed retrieve the user store manager for trial account termination in tenant: "
                         + tenantDomain, e);
             }
-            if(userRealm != null && userStoreManager != null){
-                String [] users;
-                try{
+            if (userRealm != null && userStoreManager != null) {
+                String[] users;
+                try {
                     if (log.isDebugEnabled()) {
                         log.debug("Retrieving users created on  : "
                                 + getCreationDateToLockTrialAccounts(trialPeriod));
                     }
                     users = userStoreManager.getUserList(TrialAccountConstants.ACCOUNT_CREATED_TIME,
-                            getCreationDateToLockTrialAccounts(trialPeriod)+"*",
+                            getCreationDateToLockTrialAccounts(trialPeriod) + "*",
                             null);
-                }catch(UserStoreException e){
+                } catch (UserStoreException e) {
                     throw new IdentityException("Failed retrieve the user store manager for tenant: " + tenantDomain,
                             e);
                 }
-                for(String user: users){
+                for (String user : users) {
                     try {
-                        Map<String,String> userClaims = userStoreManager.getUserClaimValues(user,
-                                new String[] {TrialAccountConstants.TRIAL_ACCOUNT_CLAIM,
-                                        TrialAccountConstants.TRIAL_ACCOUNT_EXPIRED_CLAIM},null);
+                        Map<String, String> userClaims = userStoreManager.getUserClaimValues(user,
+                                new String[]{TrialAccountConstants.TRIAL_ACCOUNT_CLAIM,
+                                        TrialAccountConstants.TRIAL_ACCOUNT_EXPIRED_CLAIM}, null);
                         if (log.isDebugEnabled()) {
                             log.debug("Claims user : " + user + " " + userClaims);
                         }
                         boolean isTrialAccount = false;
                         boolean isTrialOver = false;
-                        if(!userClaims.isEmpty()){
-                            for(Map.Entry<String,String> claim : userClaims.entrySet()){
-                                if(TrialAccountConstants.TRIAL_ACCOUNT_CLAIM.equals(claim.getKey())){
+                        if (!userClaims.isEmpty()) {
+                            for (Map.Entry<String, String> claim : userClaims.entrySet()) {
+                                if (TrialAccountConstants.TRIAL_ACCOUNT_CLAIM.equals(claim.getKey())) {
                                     isTrialAccount = Boolean.parseBoolean(claim.getValue());
                                     continue;
                                 }
-                                if(TrialAccountConstants.TRIAL_ACCOUNT_EXPIRED_CLAIM.equals(claim.getKey())){
+                                if (TrialAccountConstants.TRIAL_ACCOUNT_EXPIRED_CLAIM.equals(claim.getKey())) {
                                     isTrialOver = Boolean.parseBoolean(claim.getValue());
                                     continue;
                                 }
                             }
                         }
-                        if(isTrialAccount && !isTrialOver){
+                        if (isTrialAccount && !isTrialOver) {
                             Map<String, String> updatedClaims = new HashMap<>();
                             updatedClaims.put(TrialAccountConstants.TRIAL_ACCOUNT_EXPIRED_CLAIM,
                                     Boolean.TRUE.toString());
@@ -155,7 +158,7 @@ public class TrialAccountExpiryThread implements Runnable {
                                 log.debug("Trial account terminated for trial user : " + user);
                             }
                         }
-                    } catch (UserStoreException e){
+                    } catch (UserStoreException e) {
                         log.error("Error while checking trial status for user : " + user + e);
                     }
                 }
@@ -164,7 +167,9 @@ public class TrialAccountExpiryThread implements Runnable {
             log.error("Error occurred while terminating trial users for tenant : " + tenantDomain, e);
         }
     }
-    private String getCreationDateToLockTrialAccounts(int trialPeriod){
+
+    private String getCreationDateToLockTrialAccounts(int trialPeriod) {
+
         return LocalDate.now().plusDays(-trialPeriod).toString();
     }
 }

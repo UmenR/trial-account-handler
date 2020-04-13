@@ -19,6 +19,7 @@
 package org.sample.handler.trial.account.constants;
 
 public class TrialAccountConstants {
+
     public static final String TRIAL_ACCOUNT_CLAIM = "http://wso2.org/claims/identity/trialAccount";
     public static final String TRIAL_ACCOUNT_EXPIRED_CLAIM = "http://wso2.org/claims/identity/trialAccountExpired";
     public static final String ACCOUNT_CREATED_TIME = "http://wso2.org/claims/created";
