@@ -37,10 +37,12 @@ import org.wso2.carbon.user.core.service.RealmService;
 @Component(name = "org.sample.handler.trial.account.internal.component", service = TrialAccountServiceComponent.class,
         immediate = true)
 public class TrialAccountServiceComponent {
+
     private static final Logger log = Logger.getLogger(TrialAccountServiceComponent.class);
 
     @Activate
     protected void activate(ComponentContext context) throws UserStoreException {
+
         BundleContext bundleContext = context.getBundleContext();
         TrialAccountDataHolder.getInstance().setBundleContext(bundleContext);
         TrialAccountHandler handler = new TrialAccountHandler();
@@ -49,14 +51,17 @@ public class TrialAccountServiceComponent {
             log.debug("Trial account bundle activated");
         }
     }
+
     @Deactivate
     protected void deactivate(ComponentContext context) {
+
         if (log.isDebugEnabled()) {
             log.debug("Trial account bundle de-activated");
         }
     }
 
     protected void unsetIdentityEventService(IdentityEventService eventService) {
+
         TrialAccountDataHolder.getInstance().setIdentityEventService(null);
         if (log.isDebugEnabled()) {
             log.debug("IdentityEventService is un-set in the Trial Account bundle");
@@ -70,20 +75,21 @@ public class TrialAccountServiceComponent {
             policy = ReferencePolicy.DYNAMIC,
             unbind = "unsetIdentityEventService")
     protected void setIdentityEventService(IdentityEventService identityEventService) {
+
         TrialAccountDataHolder.getInstance().setIdentityEventService(identityEventService);
         if (log.isDebugEnabled()) {
             log.debug("IdentityEventService is set in the Trial Account bundle");
         }
     }
 
-
-
     protected void unsetIdentityGovernanceService(IdentityGovernanceService idpManager) {
+
         TrialAccountDataHolder.getInstance().setIdentityGovernanceService(null);
         if (log.isDebugEnabled()) {
             log.debug("IdentityGovernanceService is un-set in the Trial Account bundle");
         }
     }
+
     @Reference(
             name = "IdentityGovernanceService",
             service = org.wso2.carbon.identity.governance.IdentityGovernanceService.class,
@@ -91,6 +97,7 @@ public class TrialAccountServiceComponent {
             policy = ReferencePolicy.DYNAMIC,
             unbind = "unsetIdentityGovernanceService")
     protected void setIdentityGovernanceService(IdentityGovernanceService idpManager) {
+
         TrialAccountDataHolder.getInstance().setIdentityGovernanceService(idpManager);
         if (log.isDebugEnabled()) {
             log.debug("IdentityGovernanceService is set in the Trial Account bundle");
