@@ -1,3 +1,21 @@
+/*
+ * Copyright (c) 2020, WSO2 Inc. (http://www.wso2.org) All Rights Reserved.
+ *
+ * WSO2 Inc. licenses this file to you under the Apache License,
+ * Version 2.0 (the "License"); you may not use this file except
+ * in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 package org.sample.handler.trial.account;
 
 import org.apache.commons.lang.StringUtils;
@@ -27,7 +45,6 @@ import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -88,7 +105,7 @@ public class TrialAccountHandler extends AbstractEventHandler implements Identit
     }
 
     @Override
-    public Properties getDefaultPropertyValues(String s){
+    public Properties getDefaultPropertyValues(String s) {
         Map<String, String> defaultProperties = new HashMap<>();
 
         defaultProperties.put(TrialAccountConstants.TRIAL_ACCOUNT_EXPIRY_ENABLED,
@@ -142,7 +159,8 @@ public class TrialAccountHandler extends AbstractEventHandler implements Identit
     public void handleEvent(Event event) throws IdentityEventException, TrialAccountException {
         Map<String, Object> eventProperties = event.getEventProperties();
         String userName = (String) eventProperties.get(IdentityEventConstants.EventProperty.USER_NAME);
-        UserStoreManager userStoreManager = (UserStoreManager) eventProperties.get(IdentityEventConstants.EventProperty.USER_STORE_MANAGER);
+        UserStoreManager userStoreManager =
+                (UserStoreManager) eventProperties.get(IdentityEventConstants.EventProperty.USER_STORE_MANAGER);
         String userStoreDomainName = IdentityGovernanceUtil.getUserStoreDomainName(userStoreManager);
         String tenantDomain = (String) eventProperties.get(IdentityEventConstants.EventProperty.TENANT_DOMAIN);
 
@@ -172,10 +190,10 @@ public class TrialAccountHandler extends AbstractEventHandler implements Identit
                     } else {
                         message = "Trial period has ended for user " + userName + " in tenant " + tenantDomain + ".";
                     }
-//                      TODO Error message
-                    IdentityErrorMsgContext customErrorMessageContext = new IdentityErrorMsgContext(UserCoreConstants.ErrorCode.USER_IS_LOCKED);
+                    IdentityErrorMsgContext customErrorMessageContext =
+                            new IdentityErrorMsgContext(TrialAccountConstants.TRIAL_ERROR_CODE);
                     IdentityUtil.setIdentityErrorMsg(customErrorMessageContext);
-                    throw new TrialAccountException(UserCoreConstants.ErrorCode.USER_IS_LOCKED, message);
+                    throw new TrialAccountException(TrialAccountConstants.TRIAL_ERROR_CODE, message);
                 }
             }
         }
@@ -186,7 +204,8 @@ public class TrialAccountHandler extends AbstractEventHandler implements Identit
         return Boolean.parseBoolean(IdentityUtil.getProperty("AuthenticationPolicy.CheckAccountExist"));
     }
 
-    private boolean isUserExistsInDomain(UserStoreManager userStoreManager, String userName) throws TrialAccountException {
+    private boolean isUserExistsInDomain(UserStoreManager userStoreManager, String userName) throws
+            TrialAccountException {
 
         boolean isExists = false;
         try {
@@ -207,9 +226,8 @@ public class TrialAccountHandler extends AbstractEventHandler implements Identit
             return Boolean.parseBoolean(values.get(TrialAccountConstants.TRIAL_ACCOUNT_EXPIRED_CLAIM));
 
         } catch (UserStoreException e) {
-            log.error("Error in checking claim : is trial expired", e);
+            throw new TrialAccountException("Error in checking claim : is trial expired",e);
         }
-        return false;
     }
 
     protected boolean isTrialAccount(String userName, UserStoreManager userStoreManager) throws TrialAccountException {
@@ -219,9 +237,8 @@ public class TrialAccountHandler extends AbstractEventHandler implements Identit
             return Boolean.parseBoolean(values.get(TrialAccountConstants.TRIAL_ACCOUNT_CLAIM));
 
         } catch (UserStoreException e) {
-            log.error("Error in checking claim : is trial Account", e);
+            throw new TrialAccountException("Error in checking claim : is trial Account",e);
         }
-        return false;
     }
 
     public void startScheduler() {
